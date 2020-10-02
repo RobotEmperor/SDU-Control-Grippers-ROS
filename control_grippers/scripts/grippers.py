@@ -46,7 +46,7 @@ class GrippersTask:
         #self._robot_a_model = cell.find_serial_device("robot_a")
         #self._robot_b_model = cell.find_serial_device("robot_b")
         #self._robot_c_model = cell.find_serial_device("robot_c")
-        #self._gripper_a_model = cell.find_tree_device("gripper_a")
+        self._gripper_a_model = cell.find_tree_device("gripper_a")
         self._gripper_b_model = cell.find_tree_device("gripper_b")
 
         def init_gripper(model):
@@ -54,15 +54,15 @@ class GrippersTask:
             gripper.activate()
             return gripper
 
-        #gripper_a = self._pool.submit(init_gripper, self._gripper_a_model)
+        gripper_a = self._pool.submit(init_gripper, self._gripper_a_model)
         gripper_b = self._pool.submit(init_gripper, self._gripper_b_model)
         print("Waiting for grippers..")
-        #while not gripper_a.done():
-        #    pass
+        while not gripper_a.done():
+            pass
         while not gripper_b.done():
             pass
 
-        #self._gripper_a = gripper_a.result()
+        self._gripper_a = gripper_a.result()
         self._gripper_b = gripper_b.result()
 
         print("Gripper Task initialized.")
@@ -73,29 +73,34 @@ class GrippersTask:
     def move_grippper_b(self, value):
         self._gripper_b.move(value, 100, 100)
 
-
 def gripper_a_callback(data):
-    if (data != gripper_a_callback.previous_value_a):
-        rospy.loginfo("I heard A %f", data.data)
-        #grippers.move_grippper_a(data.data)
-    gripper_a_callback.previous_value_a = data.data
+    global data_a
+    if (data.data != data_a):
+      rospy.loginfo("I heard A %f", data.data)
+      grippers.move_grippper_a(data.data)
+    data_a = data.data
 
 def gripper_b_callback(data):
-    if (data != gripper_b_callback.previous_value_b):
-        rospy.loginfo("I heard B %f", data.data)
-        grippers.move_grippper_b(data.data)
-    gripper_b_callback.previous_value_b = data.data
+    global data_b
+    if (data.data != data_b):
+      rospy.loginfo("I heard B %f", data.data)
+      grippers.move_grippper_b(data.data)
+    data_b = data.data
 
 if __name__=='__main__':
     persistence = WRSPersistence.driver()
     cell = CellLoader.load(persistence)
     grippers = GrippersTask(cell, "taskboard_plate", persistence)
+    global data_a
+    global data_b
 
-    gripper_a_callback.previous_value_a = 0
-    gripper_b_callback.previous_value_b = 0
+    data_a = 0
+    data_b = 0
+    grippers.move_grippper_a(data_a)
+    grippers.move_grippper_b(data_b)
 
     rospy.init_node('grippers', anonymous=True)
-    #rospy.Subscriber("/sdu/ur10e/gripper_a", Float64, gripper_a_callback)
+    rospy.Subscriber("/sdu/ur10e/gripper_a", Float64, gripper_a_callback)
     rospy.Subscriber("/sdu/ur10e/gripper_b", Float64, gripper_b_callback)
 
     rospy.spin()
